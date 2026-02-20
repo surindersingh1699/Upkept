@@ -602,3 +602,28 @@ tr:hover td { background: rgba(255,255,255,0.02); }
   padding-bottom: 6px;
   border-bottom: 1px solid var(--border);
 }
+
+/* ─── COPILOTKIT THEME OVERRIDES ───────────────────────── */
+:root {
+  --copilot-kit-primary-color: #F0A000;
+  --copilot-kit-contrast-color: #07090C;
+  --copilot-kit-background-color: #0D1118;
+  --copilot-kit-secondary-color: #141921;
+  --copilot-kit-separator-color: #1E2738;
+  --copilot-kit-response-button-color: #F0A000;
+  --copilot-kit-response-button-background-color: rgba(240,160,0,0.15);
+}
+
+/* Override CopilotKit sidebar to match dark industrial theme */
+[data-copilotkit-sidebar],
+.copilotKitSidebar {
+  font-family: 'Chakra Petch', sans-serif !important;
+}
+
+[data-copilotkit-sidebar] button[aria-label="Open Chat"],
+[data-copilotkit-sidebar] button[aria-label="Close Chat"] {
+  background: var(--amber) !important;
+  color: var(--bg-base) !important;
+  border: none !important;
+  box-shadow: 0 2px 12px rgba(240,160,0,0.3) !important;
+}

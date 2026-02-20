@@ -1,9 +1,3 @@
-/**
- * CopilotKit runtime endpoint
- * Enables the AI assistant panel for explaining decisions and approvals.
- * Uses BedrockAdapter since Amazon Bedrock is the primary intelligence layer.
- */
-
 import {
   CopilotRuntime,
   BedrockAdapter,
@@ -11,20 +5,20 @@ import {
 } from '@copilotkit/runtime';
 import { NextRequest } from 'next/server';
 
+export const dynamic = 'force-dynamic';
+
 const serviceAdapter = new BedrockAdapter({
   model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-  region: process.env.AWS_REGION || 'us-east-1',
+  region: process.env.AWS_DEFAULT_REGION || process.env.AWS_REGION || 'us-west-2',
 });
 
-const runtime = new CopilotRuntime({
-  remoteEndpoints: [],
-});
+const copilotRuntime = new CopilotRuntime();
 
-export const POST = async (req: NextRequest) => {
+export async function POST(req: NextRequest) {
   const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-    runtime,
+    runtime: copilotRuntime,
     serviceAdapter,
     endpoint: '/api/copilotkit',
   });
   return handleRequest(req);
-};
+}

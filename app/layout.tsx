@@ -1,5 +1,7 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import '@copilotkit/react-ui/styles.css';
+import { CopilotKitWrapper } from '@/components/CopilotKitWrapper';
 
 export const metadata: Metadata = {
   title: 'UpKept — Autonomous Asset & Compliance Autopilot',
@@ -9,7 +11,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <CopilotKitWrapper>
+          {children}
+        </CopilotKitWrapper>
+      </body>
     </html>
   );
 }
