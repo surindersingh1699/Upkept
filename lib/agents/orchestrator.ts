@@ -19,6 +19,7 @@ import type {
   AgentStep,
   SystemState,
   TaskReasoning,
+  OptimizationMode,
 } from '@/types';
 import { safeInvoke } from '@/lib/bedrock';
 import { findVendors, getMarketPrice } from '@/lib/vendors';
@@ -404,7 +405,8 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
 async function discoverVendorsForTask(
   template: TaskTemplate,
   taskId: string,
-  emit: StepEmitter
+  emit: StepEmitter,
+  mode: OptimizationMode = 'quality'
 ): Promise<Task> {
   makeStep(
     emit,
@@ -414,7 +416,7 @@ async function discoverVendorsForTask(
     'running'
   );
 
-  const candidates = findVendors(template.specialty);
+  const candidates = findVendors(template.specialty, mode);
   const marketPrice = getMarketPrice(template.specialty);
 
   if (candidates.length === 0) {
@@ -458,7 +460,9 @@ async function discoverVendorsForTask(
       'BBB accreditation database',
       'Historical job completion data',
     ],
-    vendorSelectionReason: `Selected for highest reliability score (${selected?.reliabilityScore}%) and verified licensing/insurance among ${candidates.length} candidates.`,
+    vendorSelectionReason: mode === 'cost'
+      ? `Selected for lowest cost ($${selected?.estimatedPrice}) with acceptable reliability (${selected?.reliabilityScore}%) among ${candidates.length} candidates.`
+      : `Selected for highest reliability score (${selected?.reliabilityScore}%) and verified licensing/insurance among ${candidates.length} candidates.`,
     priceJustification: `Estimated cost $${selected?.estimatedPrice} vs market average $${marketPrice} — ${Math.round(((marketPrice - (selected?.estimatedPrice ?? 0)) / marketPrice) * 100)}% below market.`,
     riskAvoided: template.priority === 'urgent'
       ? 'Avoiding equipment failure, safety liability, and emergency repair premium (typically 3×).'
@@ -538,7 +542,8 @@ async function proposeDates(tasks: Task[], emit: StepEmitter): Promise<Task[]> {
 export async function runOrchestrator(
   sessionId: string,
   description: string,
-  onStep: (step: AgentStep) => void
+  onStep: (step: AgentStep) => void,
+  optimizationMode: OptimizationMode = 'quality'
 ): Promise<SystemState> {
   let stepCounter = 0;
 
@@ -568,7 +573,7 @@ export async function runOrchestrator(
 
   const tasks: Task[] = [];
   for (let i = 0; i < templates.length; i++) {
-    const task = await discoverVendorsForTask(templates[i], `t-${i + 1}`, emit);
+    const task = await discoverVendorsForTask(templates[i], `t-${i + 1}`, emit, optimizationMode);
     tasks.push(task);
   }
 
@@ -582,6 +587,7 @@ export async function runOrchestrator(
     sessionId,
     phase: 'review',
     inputDescription: description,
+    optimizationMode,
     assets,
     complianceItems,
     tasks: scheduledTasks,

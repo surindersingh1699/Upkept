@@ -3,6 +3,15 @@ export type AssetStatus = 'ok' | 'attention' | 'critical' | 'overdue';
 export type TaskStatus = 'pending' | 'approved' | 'scheduled' | 'completed';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type PhaseType = 'idle' | 'intake' | 'planning' | 'review' | 'approved' | 'complete';
+export type OptimizationMode = 'cost' | 'quality';
+
+export interface Site {
+  id: string;
+  name: string;
+  address?: string;
+  description?: string;
+  createdAt: string;
+}
 
 export interface Asset {
   id: string;
@@ -92,6 +101,9 @@ export interface GraphNode {
   status: string;
   riskLevel?: RiskLevel;
   position?: { x: number; y: number };
+  userAdded?: boolean;
+  notes?: string;
+  confidenceScore?: number;
 }
 
 export interface GraphEdge {
@@ -116,8 +128,10 @@ export interface Analytics {
 
 export interface SystemState {
   sessionId: string;
+  siteId?: string;
   phase: PhaseType;
   inputDescription: string;
+  optimizationMode?: OptimizationMode;
   assets: Asset[];
   complianceItems: ComplianceItem[];
   tasks: Task[];
@@ -125,4 +139,14 @@ export interface SystemState {
   graph: { nodes: GraphNode[]; edges: GraphEdge[] };
   analytics: Analytics;
   lastUpdated: string;
+}
+
+export interface OrderHistoryEntry {
+  id: string;
+  siteId: string;
+  timestamp: string;
+  inputDescription: string;
+  summary: string;
+  state: SystemState;
+  agentSteps: AgentStep[];
 }

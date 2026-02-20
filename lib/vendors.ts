@@ -198,11 +198,15 @@ export const VENDOR_DATABASE: Vendor[] = [
   },
 ];
 
-export function findVendors(specialty: string): Vendor[] {
+export function findVendors(specialty: string, mode: 'cost' | 'quality' = 'quality'): Vendor[] {
   const lower = specialty.toLowerCase();
-  return VENDOR_DATABASE.filter((v) =>
+  const matches = VENDOR_DATABASE.filter((v) =>
     v.specialty.some((s) => s.includes(lower) || lower.includes(s))
-  ).sort((a, b) => b.reliabilityScore - a.reliabilityScore);
+  );
+  if (mode === 'cost') {
+    return matches.sort((a, b) => a.estimatedPrice - b.estimatedPrice);
+  }
+  return matches.sort((a, b) => b.reliabilityScore - a.reliabilityScore);
 }
 
 export function getMarketPrice(specialty: string): number {

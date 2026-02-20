@@ -1,196 +1,88 @@
 'use client';
 
 import { useAppStore } from '@/lib/store';
+import SiteSelector from '@/components/SiteSelector';
 
-const PHASE_LABELS: Record<string, { label: string; color: string }> = {
-  idle:     { label: 'STANDBY',  color: 'var(--text-muted)' },
-  intake:   { label: 'INTAKE',   color: 'var(--amber)' },
-  planning: { label: 'PLANNING', color: 'var(--amber)' },
-  review:   { label: 'REVIEW',   color: 'var(--blue)' },
-  approved: { label: 'APPROVED', color: 'var(--green)' },
-  complete: { label: 'COMPLETE', color: 'var(--green)' },
+const PHASE_COLORS: Record<string, string> = {
+  idle: 'var(--text-muted)',
+  intake: 'var(--blue)',
+  planning: 'var(--amber)',
+  review: 'var(--amber)',
+  approved: 'var(--green)',
+  complete: 'var(--green)',
 };
 
 export default function Header() {
   const { state, isPlanning, agentSteps } = useAppStore();
   const phase = state?.phase ?? 'idle';
-  const { label, color } = PHASE_LABELS[phase] ?? PHASE_LABELS.idle;
-  const lastStep = agentSteps[agentSteps.length - 1];
+  const phaseColor = PHASE_COLORS[phase] ?? 'var(--text-muted)';
+  const activeAgent = isPlanning ? agentSteps[agentSteps.length - 1] : null;
 
   return (
     <header
       style={{
+        height: 44,
         display: 'flex',
         alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        height: '48px',
-        background: 'var(--bg-surface)',
+        padding: '0 16px',
         borderBottom: '1px solid var(--border)',
+        background: 'var(--bg-surface)',
+        gap: 16,
         flexShrink: 0,
-        position: 'relative',
-        zIndex: 10,
       }}
     >
       {/* Logo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <div
-            style={{
-              width: 28,
-              height: 28,
-              background: 'var(--amber-glow)',
-              border: '1px solid var(--amber)',
-              borderRadius: 'var(--radius)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 13,
-              fontFamily: 'var(--font-display)',
-              fontWeight: 700,
-              color: 'var(--amber)',
-              letterSpacing: '0.05em',
-            }}
-          >
-            U
-          </div>
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 14,
-              fontWeight: 700,
-              letterSpacing: '0.2em',
-              textTransform: 'uppercase',
-              color: 'var(--text)',
-            }}
-          >
-            UPKEPT
-          </span>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          width: 24, height: 24, borderRadius: 6,
+          background: 'linear-gradient(135deg, var(--amber) 0%, #D48900 100%)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          fontSize: 12, fontWeight: 700, color: '#07090C', fontFamily: 'var(--font-display)',
+        }}>
+          U
         </div>
-
-        <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
-
-        <span style={{ fontSize: 11, color: 'var(--text-muted)', letterSpacing: '0.08em' }}>
-          Asset &amp; Compliance Autopilot
+        <span style={{
+          fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 600,
+          letterSpacing: '0.08em', color: 'var(--text)',
+        }}>
+          UPKEPT
         </span>
       </div>
 
-      {/* Center: live agent status */}
-      {isPlanning && lastStep && (
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            position: 'absolute',
-            left: '50%',
-            transform: 'translateX(-50%)',
-          }}
-        >
-          <div className="status-dot dot-attention animate-pulse-amber" />
-          <span style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--font-mono)' }}>
-            {lastStep.agentName} · {lastStep.action}
+      {/* Site Selector */}
+      <div style={{ marginLeft: 16 }}>
+        <SiteSelector />
+      </div>
+
+      {/* Active agent status */}
+      {activeAgent && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 8,
+          marginLeft: 'auto', marginRight: 'auto',
+        }}>
+          <div style={{
+            width: 6, height: 6, borderRadius: '50%',
+            background: 'var(--amber)',
+          }} className="animate-pulse-amber" />
+          <span style={{ fontSize: 11, color: 'var(--amber)', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>
+            {activeAgent.agentName}: {activeAgent.action}
           </span>
         </div>
       )}
 
-      {/* Right: system status */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-        {state && (
-          <>
-            <StatusPill label="Assets" value={state.assets.length} />
-            <StatusPill label="Tasks" value={state.tasks.length} />
-            <StatusPill
-              label="Score"
-              value={`${state.analytics.complianceScore}%`}
-              color={
-                state.analytics.complianceScore >= 70
-                  ? 'var(--green)'
-                  : state.analytics.complianceScore >= 40
-                  ? 'var(--amber)'
-                  : 'var(--red)'
-              }
-            />
-          </>
-        )}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '3px 10px',
-            border: '1px solid',
-            borderColor: color,
-            borderRadius: 'var(--radius)',
-            background: `${color}15`,
-          }}
-        >
-          <div
-            style={{
-              width: 6,
-              height: 6,
-              borderRadius: '50%',
-              background: color,
-              boxShadow: isPlanning ? `0 0 8px ${color}` : 'none',
-              animation: isPlanning ? 'pulse-amber 1s ease-in-out infinite' : 'none',
-            }}
-          />
-          <span
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 10,
-              fontWeight: 600,
-              letterSpacing: '0.12em',
-              color,
-            }}
-          >
-            {label}
-          </span>
-        </div>
-
-        {/* Bedrock badge */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 4,
-            padding: '3px 10px',
-            border: '1px solid var(--border)',
-            borderRadius: 'var(--radius)',
-          }}
-        >
-          <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
-            AMAZON BEDROCK
-          </span>
-        </div>
+      {/* Phase indicator */}
+      <div style={{ marginLeft: activeAgent ? 0 : 'auto', display: 'flex', alignItems: 'center', gap: 8 }}>
+        <div style={{
+          width: 6, height: 6, borderRadius: '50%', background: phaseColor,
+          boxShadow: `0 0 6px ${phaseColor}`,
+        }} />
+        <span style={{
+          fontFamily: 'var(--font-display)', fontSize: 10, fontWeight: 500,
+          letterSpacing: '0.1em', color: phaseColor, textTransform: 'uppercase',
+        }}>
+          {phase}
+        </span>
       </div>
     </header>
-  );
-}
-
-function StatusPill({
-  label,
-  value,
-  color = 'var(--text-muted)',
-}: {
-  label: string;
-  value: number | string;
-  color?: string;
-}) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-      <span style={{ fontSize: 10, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
-        {label.toUpperCase()}
-      </span>
-      <span style={{ fontSize: 12, color, fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
-        {value}
-      </span>
-    </div>
   );
 }

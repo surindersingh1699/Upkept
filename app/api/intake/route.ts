@@ -15,6 +15,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const description: string = body.description || '';
+  const optimizationMode = body.optimizationMode === 'cost' ? 'cost' as const : 'quality' as const;
 
   if (!description.trim()) {
     return new Response('Description required', { status: 400 });
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
 
         await runOrchestrator(DEMO_SESSION, description, (step: AgentStep) => {
           send({ type: 'step', step });
-        });
+        }, optimizationMode);
 
         send({ type: 'complete', message: 'Planning complete' });
       } catch (err) {

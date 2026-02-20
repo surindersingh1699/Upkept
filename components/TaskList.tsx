@@ -19,112 +19,16 @@ function priorityBadgeClass(priority: Task['priority']) {
   }[priority];
 }
 
-function statusBadgeClass(status: Task['status']) {
-  return `badge badge-${status}`;
-}
-
-function TaskRow({ task, selected, onClick }: { task: Task; selected: boolean; onClick: () => void }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        padding: '12px 16px',
-        borderBottom: '1px solid var(--border)',
-        cursor: 'pointer',
-        background: selected ? 'var(--amber-glow)' : 'transparent',
-        borderLeft: selected ? '2px solid var(--amber)' : '2px solid transparent',
-        transition: 'all 0.15s',
-        display: 'flex',
-        alignItems: 'flex-start',
-        gap: 12,
-      }}
-      onMouseEnter={(e) => {
-        if (!selected) (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)';
-      }}
-      onMouseLeave={(e) => {
-        if (!selected) (e.currentTarget as HTMLElement).style.background = 'transparent';
-      }}
-    >
-      {/* Priority dot */}
-      <div style={{ paddingTop: 3 }}>
-        <div
-          className={`status-dot dot-${task.priority === 'urgent' ? 'critical' : task.priority === 'high' ? 'attention' : 'ok'}`}
-        />
-      </div>
-
-      {/* Main content */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 500,
-              color: selected ? 'var(--amber-bright)' : 'var(--text)',
-              overflow: 'hidden',
-              textOverflow: 'ellipsis',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {task.title}
-          </span>
-        </div>
-
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 4 }}>
-          <span className={priorityBadgeClass(task.priority)}>{task.priority}</span>
-          <span className={statusBadgeClass(task.status)}>{task.status}</span>
-          {task.selectedVendor && (
-            <span
-              style={{
-                fontSize: 10,
-                color: 'var(--text-muted)',
-                fontFamily: 'var(--font-mono)',
-              }}
-            >
-              → {task.selectedVendor.name}
-            </span>
-          )}
-        </div>
-
-        <div style={{ display: 'flex', gap: 12, fontSize: 11, color: 'var(--text-muted)' }}>
-          <span>Due: {task.dueDate}</span>
-          <span style={{ color: 'var(--green)' }}>${task.estimatedCost.toLocaleString()}</span>
-          {task.marketPrice > task.estimatedCost && (
-            <span style={{ color: 'var(--text-dim)' }}>
-              vs ${task.marketPrice.toLocaleString()} market
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Confidence */}
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        <div
-          style={{
-            fontSize: 16,
-            fontFamily: 'var(--font-display)',
-            fontWeight: 700,
-            color:
-              task.reasoning.confidenceScore >= 80
-                ? 'var(--green)'
-                : task.reasoning.confidenceScore >= 60
-                ? 'var(--amber)'
-                : 'var(--red)',
-          }}
-        >
-          {task.reasoning.confidenceScore}
-        </div>
-        <div style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em' }}>
-          CONF
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default function TaskList() {
-  const { state, selectedTaskId, setSelectedTaskId } = useAppStore();
+  const { state, selectedTaskId, setSelectedTaskId, setRightPanelView } = useAppStore();
 
-  if (!state || state.tasks.length === 0) return null;
+  if (!state || state.tasks.length === 0) {
+    return (
+      <div style={{ color: 'var(--text-dim)', textAlign: 'center', padding: 24, fontSize: 12 }}>
+        No tasks yet. Run the agent to generate tasks.
+      </div>
+    );
+  }
 
   const sorted = [...state.tasks].sort(
     (a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority]
@@ -134,60 +38,88 @@ export default function TaskList() {
   const totalMarket = state.tasks.reduce((s, t) => s + t.marketPrice, 0);
   const savings = totalMarket - totalCost;
 
+  const handleTaskClick = (taskId: string) => {
+    setSelectedTaskId(taskId);
+    setRightPanelView('task');
+  };
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
-      {/* Summary row */}
-      <div
-        style={{
-          padding: '10px 16px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          gap: 20,
-          flexShrink: 0,
-          background: 'var(--bg-surface)',
-        }}
-      >
-        <SummaryItem label="Tasks" value={state.tasks.length} />
-        <SummaryItem label="Total Est." value={`$${totalCost.toLocaleString()}`} valueColor="var(--text)" />
-        <SummaryItem label="Market" value={`$${totalMarket.toLocaleString()}`} valueColor="var(--text-dim)" />
-        <SummaryItem label="Savings" value={`$${savings.toLocaleString()}`} valueColor="var(--green)" />
-        <SummaryItem
-          label="Pending Approval"
-          value={state.tasks.filter((t) => t.status === 'pending').length}
-          valueColor="var(--amber)"
-        />
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+      {/* Summary stats */}
+      <div style={{
+        display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 6,
+        padding: '0 0 12px', borderBottom: '1px solid var(--border)', marginBottom: 12,
+      }}>
+        <MiniStat label="Tasks" value={state.tasks.length} />
+        <MiniStat label="Est. Cost" value={`$${totalCost.toLocaleString()}`} color="var(--text)" />
+        <MiniStat label="Savings" value={`$${savings.toLocaleString()}`} color="var(--green)" />
       </div>
 
-      {/* Task rows */}
-      <div style={{ flex: 1, overflowY: 'auto' }}>
-        {sorted.map((task) => (
-          <TaskRow
-            key={task.id}
-            task={task}
-            selected={task.id === selectedTaskId}
-            onClick={() => setSelectedTaskId(task.id === selectedTaskId ? null : task.id)}
-          />
-        ))}
+      {/* Task cards */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        {sorted.map((task) => {
+          const isSelected = task.id === selectedTaskId;
+          return (
+            <button
+              key={task.id}
+              onClick={() => handleTaskClick(task.id)}
+              style={{
+                display: 'flex', flexDirection: 'column', gap: 6,
+                padding: '10px 12px', textAlign: 'left',
+                background: isSelected ? 'var(--amber-glow)' : 'var(--bg-base)',
+                border: `1px solid ${isSelected ? 'var(--amber-dim)' : 'var(--border)'}`,
+                borderRadius: 'var(--radius)', cursor: 'pointer',
+                transition: 'all 0.15s',
+              }}
+            >
+              {/* Title row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div className={`status-dot dot-${task.priority === 'urgent' ? 'critical' : task.priority === 'high' ? 'attention' : 'ok'}`} />
+                <span style={{
+                  fontSize: 12, fontWeight: 500, color: 'var(--text)',
+                  flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                }}>
+                  {task.title}
+                </span>
+                <span style={{
+                  fontSize: 13, fontFamily: 'var(--font-display)', fontWeight: 700,
+                  color: task.reasoning.confidenceScore >= 80 ? 'var(--green)' : task.reasoning.confidenceScore >= 60 ? 'var(--amber)' : 'var(--red)',
+                }}>
+                  {task.reasoning.confidenceScore}
+                </span>
+              </div>
+
+              {/* Badges + price row */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                <span className={priorityBadgeClass(task.priority)} style={{ fontSize: 9 }}>{task.priority}</span>
+                <span className={`badge badge-${task.status}`} style={{ fontSize: 9 }}>{task.status}</span>
+                {task.selectedVendor && (
+                  <span style={{ fontSize: 10, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                    {task.selectedVendor.name}
+                  </span>
+                )}
+                <span style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--green)', fontFamily: 'var(--font-mono)', fontWeight: 600 }}>
+                  ${task.estimatedCost.toLocaleString()}
+                </span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );
 }
 
-function SummaryItem({
-  label,
-  value,
-  valueColor = 'var(--text)',
-}: {
-  label: string;
-  value: string | number;
-  valueColor?: string;
-}) {
+function MiniStat({ label, value, color = 'var(--text-muted)' }: { label: string; value: string | number; color?: string }) {
   return (
-    <div>
-      <div style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', letterSpacing: '0.1em', textTransform: 'uppercase' }}>
+    <div style={{
+      padding: '6px 8px', background: 'var(--bg-base)',
+      border: '1px solid var(--border)', borderRadius: 'var(--radius-sm, 4px)', textAlign: 'center',
+    }}>
+      <div style={{ fontSize: 9, color: 'var(--text-dim)', fontFamily: 'var(--font-display)', letterSpacing: '0.06em', marginBottom: 2 }}>
         {label}
       </div>
-      <div style={{ fontSize: 14, fontWeight: 600, color: valueColor, fontFamily: 'var(--font-mono)' }}>
+      <div style={{ fontSize: 12, fontWeight: 600, color, fontFamily: 'var(--font-mono)' }}>
         {value}
       </div>
     </div>
