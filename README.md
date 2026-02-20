@@ -1,36 +1,94 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# UpKept — Autonomous Asset & Compliance Autopilot
+
+> A fully autonomous AI system that maintains assets, enforces compliance, selects vendors, and proves every decision — with humans approving only when required.
+
+## Hackathon Demo
+
+### Closing Line
+
+"This system doesn't track work — it decides, acts, and proves compliance automatically."
+
+### Demo Flow (90 seconds)
+
+1. **Intake** — Paste any property/system description. Agent extracts assets autonomously.
+2. **Planning** — Agent pipeline finds vendors, simulates pricing, builds a schedule. No user input.
+3. **Explanation** — Click any task to see data used, vendor rationale, risk avoided, confidence score.
+4. **Approval** — One-click approve vendor scheduling (required). Compliance actions optional.
+5. **Graph** — Visual asset → compliance → task → vendor relationship map.
+6. **Analytics** — Compliance score, savings estimate, upcoming risks, decision log.
+
+## Architecture
+
+```text
+┌─────────────────────────────────────────────────────┐
+│  Next.js 14 App Router + TypeScript                 │
+├─────────────────────────────────────────────────────┤
+│  Agent Pipeline (Amazon Bedrock / Claude Sonnet)    │
+│  ┌────────────┐  ┌──────────────┐  ┌────────────┐  │
+│  │AssetExtract│→ │ComplianceMap │→ │VendorDisc. │  │
+│  └────────────┘  └──────────────┘  └────────────┘  │
+│                                    ┌────────────┐   │
+│                                    │ Scheduler  │   │
+│                                    └────────────┘   │
+├─────────────────────────────────────────────────────┤
+│  Graph State (in-memory, Neo4j-compatible model)    │
+│  Nodes: Asset | Compliance | Vendor | Task          │
+│  Edges: requires | handles | assigned_to | links_to │
+├─────────────────────────────────────────────────────┤
+│  CopilotKit — Human-in-the-loop approval UI         │
+│  Datadog — LLM observability + agent traces         │
+│  React Flow — Visual asset graph                    │
+└─────────────────────────────────────────────────────┘
+```
+
+## Tech Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | Next.js 14, React, TypeScript |
+| Styling | Tailwind CSS v4 + custom CSS vars |
+| AI / Agents | Amazon Bedrock (Claude claude-sonnet-4-6) |
+| State Graph | In-memory graph (Neo4j model) |
+| Visualization | React Flow |
+| Human Approval | CopilotKit |
+| State Management | Zustand |
+| Observability | Datadog LLM tracing |
 
 ## Getting Started
 
-First, run the development server:
-
 ```bash
+cp .env.example .env.local
+# Fill in AWS credentials for real Bedrock calls
+# Without credentials, system uses deterministic demo data
+
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Key Design Decisions
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Graph model**: Every entity (asset, compliance, vendor, task) is a node. Relationships are typed edges.
+- **Autonomy by default**: The system plans, finds vendors, and schedules without user input.
+- **Explainability first**: Every decision shows data sources, confidence score, why alternatives were rejected.
+- **Graceful fallback**: Works fully without AWS credentials using deterministic demo data.
 
-## Learn More
+## Agent Pipeline
 
-To learn more about Next.js, take a look at the following resources:
+| Agent | Responsibility |
+| --- | --- |
+| `AssetExtractor` | Parses description into structured Asset nodes |
+| `ComplianceMapper` | Links compliance obligations to assets, scores risk |
+| `VendorDiscovery` | Searches public data (Yelp/Google/BBB), ranks vendors |
+| `Scheduler` | Proposes optimal dates considering urgency and availability |
+| `Orchestrator` | Chains all agents, streams reasoning to UI |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## API Routes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `POST /api/intake` — Accepts description, streams SSE agent events
+- `GET /api/state` — Returns current system state
+- `PATCH /api/state` — Update phase or partial state
+- `POST /api/approve` — Approve single task or all pending tasks
+- `GET /api/analytics` — Returns computed analytics
+- `POST /api/copilotkit` — CopilotKit AI assistant endpoint
