@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, updateSession, buildGraph, computeAnalytics, DEMO_SESSION } from '@/lib/graph';
+import { getSessionAsync, updateSession, buildGraph, computeAnalytics, DEMO_SESSION } from '@/lib/graph';
 
 export const dynamic = 'force-dynamic';
 
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     scheduledDate?: string;
   };
 
-  const state = getSession(DEMO_SESSION);
+  const state = await getSessionAsync(DEMO_SESSION);
 
   const updatedTasks = state.tasks.map((task) => {
     if (action === 'approve_all' || task.id === taskId) {

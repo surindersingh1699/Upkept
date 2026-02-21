@@ -10,7 +10,7 @@ export default function StatusBar() {
   return (
     <div className="status-bar">
       <span>
-        <span style={{ width: 5, height: 5, borderRadius: '50%', background: state ? 'var(--green)' : 'var(--text-dim)', display: 'inline-block' }} />
+        <span style={{ width: 5, height: 5, borderRadius: '50%', background: state ? 'var(--green-bright)' : 'var(--text-dim)', display: 'inline-block' }} />
         {site?.name ?? 'No site'}
       </span>
       <span>
@@ -22,7 +22,7 @@ export default function StatusBar() {
       {analytics && (
         <>
           <span>
-            Score: <strong style={{ color: analytics.complianceScore >= 70 ? 'var(--green)' : analytics.complianceScore >= 40 ? 'var(--amber)' : 'var(--red)' }}>
+            Score: <strong style={{ color: analytics.complianceScore >= 70 ? 'var(--green-bright)' : analytics.complianceScore >= 40 ? 'var(--amber)' : 'var(--red)' }}>
               {analytics.complianceScore}%
             </strong>
           </span>
@@ -31,7 +31,7 @@ export default function StatusBar() {
           </span>
           {analytics.estimatedSavings > 0 && (
             <span>
-              Savings: <strong style={{ color: 'var(--green)' }}>${analytics.estimatedSavings.toLocaleString()}</strong>
+              Savings: <strong style={{ color: 'var(--green-bright)' }}>${analytics.estimatedSavings.toLocaleString()}</strong>
             </span>
           )}
         </>

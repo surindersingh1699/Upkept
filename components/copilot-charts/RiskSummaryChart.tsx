@@ -8,7 +8,7 @@ interface Risk {
 
 export function RiskSummaryChart({ risks }: { risks: Risk[] }) {
   const sorted = [...risks].sort((a, b) => a.daysUntil - b.daysUntil);
-  const colorMap: Record<string, string> = { critical: '#ef4444', high: '#f59e0b', medium: '#3b82f6', low: '#22c55e' };
+  const colorMap: Record<string, string> = { critical: 'var(--red)', high: 'var(--amber)', medium: 'var(--primary)', low: 'var(--green-bright)' };
 
   return (
     <div style={{ padding: 16, background: 'var(--bg-elevated)', borderRadius: 'var(--radius)', border: '1px solid var(--border)' }}>
@@ -20,7 +20,7 @@ export function RiskSummaryChart({ risks }: { risks: Risk[] }) {
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
           {sorted.map((risk, i) => {
-            const color = colorMap[risk.severity] || '#6b7280';
+            const color = colorMap[risk.severity] || 'var(--text-muted)';
             return (
               <div key={i} style={{
                 display: 'flex', alignItems: 'center', gap: 8, padding: '6px 10px',

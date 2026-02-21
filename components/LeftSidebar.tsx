@@ -32,20 +32,21 @@ export default function LeftSidebar() {
       {/* Collapse button */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        padding: '8px 12px', borderBottom: '1px solid var(--border)',
+        padding: '10px 14px', borderBottom: '1px solid var(--border)',
         flexShrink: 0,
       }}>
         <span style={{
-          fontFamily: 'var(--font-display)', fontSize: 10, letterSpacing: '0.1em',
-          color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 500,
+          fontFamily: 'var(--font-display)', fontSize: 12, fontWeight: 700,
+          color: 'var(--text-secondary)',
         }}>
           Intake & Reasoning
         </span>
         <button
           onClick={toggleLeftSidebar}
           style={{
-            background: 'none', border: 'none', color: 'var(--text-dim)',
-            cursor: 'pointer', fontSize: 14, padding: '2px 4px',
+            background: 'var(--bg-hover)', border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)',
+            color: 'var(--text-muted)',
+            cursor: 'pointer', fontSize: 12, padding: '2px 6px',
           }}
           title="Collapse sidebar"
         >
@@ -53,12 +54,12 @@ export default function LeftSidebar() {
         </button>
       </div>
 
-      {/* Intake Panel — top section */}
+      {/* Intake Panel */}
       <div style={{ flexShrink: 0, borderBottom: '1px solid var(--border)' }}>
         <IntakePanel />
       </div>
 
-      {/* Agent Stream — bottom section, fills remaining space */}
+      {/* Agent Stream */}
       <div style={{ flex: 1, overflow: 'hidden' }}>
         <AgentStream />
       </div>

@@ -36,16 +36,17 @@ export default function ApprovalBanner() {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, flex: 1 }}>
         <div style={{
           width: 8, height: 8, borderRadius: '50%',
-          background: 'var(--amber)', animation: 'pulse 2s infinite',
-        }} />
-        <span style={{ fontSize: 12, color: 'var(--text)', fontWeight: 500 }}>
+          background: 'var(--primary)',
+        }} className="animate-pulse-amber" />
+        <span style={{ fontSize: 12, color: 'var(--text)', fontFamily: 'var(--font-display)', fontWeight: 600 }}>
           {pending.length} pending approval{pending.length > 1 ? 's' : ''}
         </span>
         <button
           onClick={() => { setSelectedTaskId(pending[0].id); setRightPanelView('tasks'); }}
           style={{
-            background: 'none', border: 'none', color: 'var(--amber)',
-            cursor: 'pointer', fontSize: 11, textDecoration: 'underline',
+            background: 'none', border: 'none', color: 'var(--primary)',
+            cursor: 'pointer', fontSize: 11, fontWeight: 600, fontFamily: 'var(--font-display)',
+            textDecoration: 'underline',
           }}
         >
           Review
@@ -54,8 +55,8 @@ export default function ApprovalBanner() {
 
       <div style={{ display: 'flex', gap: 8 }}>
         <button
-          className="btn btn-green"
-          style={{ padding: '4px 14px', fontSize: 10 }}
+          className="btn btn-primary"
+          style={{ padding: '4px 14px', fontSize: 11 }}
           onClick={approveAll}
           disabled={approving}
         >
@@ -65,7 +66,7 @@ export default function ApprovalBanner() {
           onClick={() => setDismissed(true)}
           style={{
             background: 'none', border: 'none', color: 'var(--text-dim)',
-            cursor: 'pointer', fontSize: 14, padding: '2px 6px',
+            cursor: 'pointer', fontSize: 16, padding: '2px 6px',
           }}
         >
           ×

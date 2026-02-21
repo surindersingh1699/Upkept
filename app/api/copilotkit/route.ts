@@ -3,7 +3,7 @@ import {
   BedrockAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,10 +15,18 @@ const serviceAdapter = new BedrockAdapter({
 const copilotRuntime = new CopilotRuntime();
 
 export async function POST(req: NextRequest) {
-  const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
-    runtime: copilotRuntime,
-    serviceAdapter,
-    endpoint: '/api/copilotkit',
-  });
-  return handleRequest(req);
+  try {
+    const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
+      runtime: copilotRuntime,
+      serviceAdapter,
+      endpoint: '/api/copilotkit',
+    });
+    return handleRequest(req);
+  } catch (err) {
+    console.error('[copilotkit] Error:', err);
+    return NextResponse.json(
+      { error: 'CopilotKit failed — check AWS Bedrock credentials', detail: String(err) },
+      { status: 500 },
+    );
+  }
 }

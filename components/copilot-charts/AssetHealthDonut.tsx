@@ -11,7 +11,7 @@ export function AssetHealthDonut({ assets }: { assets: Asset[] }) {
   };
 
   const total = assets.length || 1;
-  const colors = { ok: '#22c55e', attention: '#f59e0b', critical: '#ef4444', overdue: '#dc2626' };
+  const colors = { ok: 'var(--green-bright)', attention: 'var(--amber)', critical: 'var(--red)', overdue: 'var(--red)' };
 
   // Build SVG donut segments
   const segments: { color: string; pct: number; label: string; count: number }[] = [

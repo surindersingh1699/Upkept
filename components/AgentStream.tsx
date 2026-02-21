@@ -93,7 +93,7 @@ export default function AgentStream() {
 
         {isPlanning && (
           <div style={{ padding: '8px 12px', display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span className="animate-blink" style={{ color: 'var(--amber)', fontSize: 10 }}>▮</span>
+            <span className="animate-blink" style={{ color: 'var(--primary)', fontSize: 10 }}>▮</span>
             <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Processing...</span>
           </div>
         )}

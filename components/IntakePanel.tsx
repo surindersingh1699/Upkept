@@ -123,7 +123,7 @@ export default function IntakePanel() {
             e.target.value = '';
           }}
         />
-        <div style={{ fontSize: 18, marginBottom: 4, color: isDragging ? 'var(--amber)' : 'var(--text-dim)' }}>
+        <div style={{ fontSize: 18, marginBottom: 4, color: isDragging ? 'var(--primary)' : 'var(--text-dim)' }}>
           {isDragging ? '↓' : '↑'}
         </div>
         <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-display)', letterSpacing: '0.06em' }}>

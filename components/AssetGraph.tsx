@@ -322,12 +322,12 @@ export default function AssetGraph() {
         <MiniMap
           nodeColor={(n) => {
             const colors: Record<string, string> = {
-              asset: '#4A90E2',
-              compliance: '#F0A000',
-              vendor: '#00CC6A',
-              task: '#9B6DFF',
+              asset: '#0F6CBD',
+              compliance: '#F7630C',
+              vendor: '#107C10',
+              task: '#7160E8',
             };
-            return colors[n.type ?? ''] ?? '#253048';
+            return colors[n.type ?? ''] ?? '#D1D5DB';
           }}
           style={{ background: 'var(--bg-elevated)' }}
         />

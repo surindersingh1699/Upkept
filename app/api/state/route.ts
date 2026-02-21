@@ -4,12 +4,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getSession, updateSession, DEMO_SESSION } from '@/lib/graph';
+import { getSessionAsync, updateSession, DEMO_SESSION } from '@/lib/graph';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const state = getSession(DEMO_SESSION);
+  const state = await getSessionAsync(DEMO_SESSION);
   return NextResponse.json(state);
 }
 
