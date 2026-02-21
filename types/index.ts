@@ -4,6 +4,78 @@ export type TaskStatus = 'pending' | 'approved' | 'scheduled' | 'completed';
 export type RiskLevel = 'low' | 'medium' | 'high' | 'critical';
 export type PhaseType = 'idle' | 'intake' | 'planning' | 'review' | 'approved' | 'complete';
 export type OptimizationMode = 'cost' | 'quality';
+export type PropertyType = 'residential' | 'commercial' | 'industrial' | 'mixed_use';
+export type DashboardView = 'chat' | 'graph' | 'timeline' | 'calendar';
+
+export type VendorCategory =
+  | 'hvac'
+  | 'plumbing'
+  | 'electrical'
+  | 'roofing'
+  | 'fire_safety'
+  | 'it_security'
+  | 'it_ops'
+  | 'compliance'
+  | 'general';
+
+export interface ServiceProfile {
+  category: VendorCategory;
+  subcategory?: string;
+  keywords: string[];
+  onsite: boolean;
+  requiresLicense?: string[];
+  urgency: 'emergency' | 'urgent' | 'standard';
+}
+
+export interface VendorServiceArea {
+  city?: string;
+  state?: string;
+  radiusMiles?: number;
+}
+
+export interface VendorSearchContext {
+  city: string;
+  state: string;
+  zip?: string;
+  radiusMiles: number;
+  propertyType?: 'residential' | 'commercial';
+}
+
+export interface VendorSearchRequest {
+  service: ServiceProfile;
+  location: VendorSearchContext;
+  queries: string[];
+  mode: OptimizationMode;
+}
+
+export interface VendorScoreBreakdown {
+  total: number;
+  relevance: number;
+  trust: number;
+  compliance: number;
+  price: number;
+  availability: number;
+}
+
+export interface ScoredVendor {
+  vendor: Vendor;
+  score: VendorScoreBreakdown;
+}
+
+export interface SetupData {
+  siteName: string;
+  address: string;
+  propertyType: PropertyType;
+  squareFootage?: number;
+  yearBuilt?: number;
+  numberOfUnits?: number;
+  description: string;
+  complianceNeeds: string[];
+  jurisdiction?: string;
+  uploadedFiles: { name: string; size: number; extractedText: string }[];
+  completed: boolean;
+  completedAt?: string;
+}
 
 export interface Site {
   id: string;
@@ -11,6 +83,8 @@ export interface Site {
   address?: string;
   description?: string;
   createdAt: string;
+  setupData?: SetupData;
+  setupCompleted?: boolean;
 }
 
 export interface Asset {
@@ -53,6 +127,13 @@ export interface Vendor {
   yearsInBusiness: number;
   licensed: boolean;
   insured: boolean;
+  // Extended fields for richer vendor matching
+  bbbStatus?: 'unknown' | 'ok' | 'warning';
+  categories?: VendorCategory[];
+  services?: string[];
+  serviceArea?: VendorServiceArea;
+  availabilityScore?: number;
+  matchScore?: number;
 }
 
 export interface TaskReasoning {
@@ -149,4 +230,16 @@ export interface OrderHistoryEntry {
   summary: string;
   state: SystemState;
   agentSteps: AgentStep[];
+}
+
+export interface Profile {
+  id: string;
+  full_name: string | null;
+  email: string;
+  phone: string | null;
+  company: string | null;
+  role_title: string | null;
+  avatar_url: string | null;
+  created_at: string;
+  updated_at: string;
 }

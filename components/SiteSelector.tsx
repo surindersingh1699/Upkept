@@ -1,14 +1,13 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { useAppStore } from '@/lib/store';
-import type { Site } from '@/types';
 
 export default function SiteSelector() {
-  const { sites, activeSiteId, addSite, setActiveSite, removeSite, renameSite } = useAppStore();
+  const router = useRouter();
+  const { sites, activeSiteId, setActiveSite, removeSite } = useAppStore();
   const [open, setOpen] = useState(false);
-  const [adding, setAdding] = useState(false);
-  const [newName, setNewName] = useState('');
   const ref = useRef<HTMLDivElement>(null);
 
   const activeSite = sites.find((s) => s.id === activeSiteId) ?? sites[0];
@@ -17,25 +16,15 @@ export default function SiteSelector() {
     const handler = (e: MouseEvent) => {
       if (ref.current && !ref.current.contains(e.target as Node)) {
         setOpen(false);
-        setAdding(false);
       }
     };
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const handleAdd = () => {
-    if (!newName.trim()) return;
-    const site: Site = {
-      id: `site-${Date.now()}`,
-      name: newName.trim(),
-      createdAt: new Date().toISOString(),
-    };
-    addSite(site);
-    setActiveSite(site.id);
-    setNewName('');
-    setAdding(false);
+  const handleAddNew = () => {
     setOpen(false);
+    router.push('/dashboard/setup');
   };
 
   return (
@@ -65,10 +54,17 @@ export default function SiteSelector() {
                   {site.address && <div style={{ fontSize: 10, color: 'var(--text-dim)' }}>{site.address}</div>}
                 </div>
               </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); router.push(`/dashboard/setup?edit=${site.id}`); setOpen(false); }}
+                style={{ padding: '6px 8px', background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', fontSize: 10 }}
+                title="Edit site"
+              >
+                Edit
+              </button>
               {sites.length > 1 && (
                 <button
                   onClick={(e) => { e.stopPropagation(); removeSite(site.id); }}
-                  style={{ padding: '6px 10px', background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12 }}
+                  style={{ padding: '6px 8px', background: 'none', border: 'none', color: 'var(--text-dim)', cursor: 'pointer', fontSize: 12 }}
                   title="Delete site"
                 >
                   ×
@@ -79,30 +75,13 @@ export default function SiteSelector() {
 
           <div className="context-menu-divider" />
 
-          {adding ? (
-            <div style={{ padding: '8px 14px', display: 'flex', gap: 8 }}>
-              <input
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
-                placeholder="Site name..."
-                autoFocus
-                style={{ flex: 1, padding: '4px 8px', fontSize: 12 }}
-              />
-              <button className="btn btn-green" style={{ padding: '4px 10px', fontSize: 10 }} onClick={handleAdd}>
-                Add
-              </button>
-            </div>
-          ) : (
-            <button
-              className="site-selector-item"
-              onClick={() => setAdding(true)}
-              style={{ color: 'var(--amber)' }}
-            >
-              + Add New Site
-            </button>
-          )}
+          <button
+            className="site-selector-item"
+            onClick={handleAddNew}
+            style={{ color: 'var(--amber)' }}
+          >
+            + Add New Site
+          </button>
         </div>
       )}
     </div>

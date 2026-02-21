@@ -318,7 +318,7 @@ h1, h2, h3, h4, .display {
 }
 
 /* ─── TEXTAREA / INPUT ──────────────────────────────────── */
-textarea, input[type="text"] {
+textarea, input[type="text"], input[type="email"], input[type="password"], input[type="tel"] {
   background: var(--bg-base);
   border: 1px solid var(--border);
   color: var(--text);
@@ -331,7 +331,7 @@ textarea, input[type="text"] {
   resize: vertical;
   width: 100%;
 }
-textarea:focus, input[type="text"]:focus {
+textarea:focus, input[type="text"]:focus, input[type="email"]:focus, input[type="password"]:focus, input[type="tel"]:focus {
   border-color: var(--primary);
   box-shadow: 0 0 0 2px var(--primary-dim);
 }
@@ -918,7 +918,8 @@ tr:hover td { background: var(--bg-hover); }
 }
 
 [data-copilotkit-sidebar],
-.copilotKitSidebar {
+.copilotKitSidebar,
+.upkept-chat-center {
   font-family: 'Figtree', sans-serif !important;
 }
 
@@ -928,6 +929,47 @@ tr:hover td { background: var(--bg-hover); }
   color: #fff !important;
   border: none !important;
   box-shadow: var(--shadow-md) !important;
+}
+
+/* ─── CENTER CHAT PANEL ────────────────────────────────── */
+.upkept-chat-center {
+  height: 100%;
+  border: none;
+  background: var(--bg-base);
+}
+
+.upkept-chat-center > div {
+  height: 100% !important;
+  max-height: 100% !important;
+  border-radius: 0 !important;
+  border: none !important;
+  border-left: 1px solid var(--border) !important;
+  border-right: 1px solid var(--border) !important;
+  box-shadow: none !important;
+}
+
+/* ─── CHAT SIDEBAR NAV ─────────────────────────────────── */
+.chat-sidebar-btn:hover {
+  background: var(--bg-hover) !important;
+  color: var(--text) !important;
+}
+
+/* ─── NUMBER INPUT ─────────────────────────────────────── */
+input[type="number"] {
+  background: var(--bg-base);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: 13px;
+  border-radius: var(--radius);
+  padding: 8px 12px;
+  outline: none;
+  transition: border-color 0.15s;
+  width: 100%;
+}
+input[type="number"]:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px var(--primary-dim);
 }
 
 /* ─── FOCUS STYLES (ACCESSIBILITY) ──────────────────────── */

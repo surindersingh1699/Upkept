@@ -5,8 +5,6 @@ import { useAppStore } from '@/lib/store';
 import { createClient } from '@/lib/supabase/client';
 import SiteSelector from '@/components/SiteSelector';
 
-type ViewType = 'graph' | 'timeline' | 'calendar';
-
 const PHASE_COLORS: Record<string, string> = {
   idle: 'var(--text-muted)',
   intake: 'var(--primary)',
@@ -16,12 +14,7 @@ const PHASE_COLORS: Record<string, string> = {
   complete: 'var(--green-bright)',
 };
 
-interface HeaderProps {
-  activeView: ViewType;
-  onViewChange: (view: ViewType) => void;
-}
-
-export default function Header({ activeView, onViewChange }: HeaderProps) {
+export default function Header() {
   const { state, isPlanning, agentSteps } = useAppStore();
   const phase = state?.phase ?? 'idle';
   const phaseColor = PHASE_COLORS[phase] ?? 'var(--text-muted)';
@@ -86,42 +79,6 @@ export default function Header({ activeView, onViewChange }: HeaderProps) {
 
       {/* Site Selector */}
       <SiteSelector />
-
-      {/* Divider */}
-      <div style={{ width: 1, height: 24, background: 'var(--border)', margin: '0 12px' }} />
-
-      {/* View Tabs */}
-      <div className="view-tabs">
-        <button
-          className={`view-tab ${activeView === 'graph' ? 'active' : ''}`}
-          onClick={() => onViewChange('graph')}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <circle cx="4" cy="4" r="2.5" /><circle cx="12" cy="4" r="2.5" /><circle cx="8" cy="12" r="2.5" />
-            <line x1="6" y1="4.5" x2="10" y2="4.5" /><line x1="5" y1="6" x2="7" y2="10" /><line x1="11" y1="6" x2="9" y2="10" />
-          </svg>
-          Graph
-        </button>
-        <button
-          className={`view-tab ${activeView === 'timeline' ? 'active' : ''}`}
-          onClick={() => onViewChange('timeline')}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="1" y="3" width="14" height="2" rx="1" /><rect x="3" y="7" width="10" height="2" rx="1" /><rect x="1" y="11" width="8" height="2" rx="1" />
-          </svg>
-          Timeline
-        </button>
-        <button
-          className={`view-tab ${activeView === 'calendar' ? 'active' : ''}`}
-          onClick={() => onViewChange('calendar')}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-            <rect x="1" y="2" width="14" height="13" rx="2" /><line x1="1" y1="6" x2="15" y2="6" />
-            <line x1="5" y1="1" x2="5" y2="3" /><line x1="11" y1="1" x2="11" y2="3" />
-          </svg>
-          Calendar
-        </button>
-      </div>
 
       {/* Active agent status */}
       {activeAgent && (
@@ -217,6 +174,20 @@ export default function Header({ activeView, onViewChange }: HeaderProps) {
                     {user.email}
                   </div>
                 </div>
+                <button
+                  onClick={() => { setShowMenu(false); window.location.href = '/dashboard/settings'; }}
+                  style={{
+                    display: 'block', width: '100%', padding: '10px 16px',
+                    background: 'none', border: 'none', textAlign: 'left',
+                    fontSize: 13, color: 'var(--text)', cursor: 'pointer',
+                    fontFamily: 'var(--font-body)',
+                  }}
+                  onMouseEnter={(e) => { e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                  onMouseLeave={(e) => { e.currentTarget.style.background = 'none'; }}
+                >
+                  Settings
+                </button>
+                <div style={{ height: 1, background: 'var(--border-subtle)' }} />
                 <button
                   onClick={handleSignOut}
                   style={{

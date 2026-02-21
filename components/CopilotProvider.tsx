@@ -8,15 +8,15 @@ import { ComplianceTimeline } from '@/components/copilot-charts/ComplianceTimeli
 import { AssetHealthDonut } from '@/components/copilot-charts/AssetHealthDonut';
 import { VendorComparisonTable } from '@/components/copilot-charts/VendorComparisonTable';
 import { RiskSummaryChart } from '@/components/copilot-charts/RiskSummaryChart';
-import type { SystemState } from '@/types';
+import type { SystemState, DashboardView } from '@/types';
 
 /**
  * Headless component that registers all CopilotKit readable state and actions.
- * Renders no visible UI — add to page.tsx alongside CopilotSidebar.
+ * Renders no visible UI — add to page.tsx alongside CopilotChat.
  */
 export default function CopilotProvider() {
   const store = useAppStore();
-  const { state, sites, activeSiteId, optimizationMode } = store;
+  const { state, sites, activeSiteId, optimizationMode, dashboardView } = store;
 
   // ── Readable State ──
   // Expose all app data so the copilot can answer questions about it
@@ -54,6 +54,11 @@ export default function CopilotProvider() {
   useCopilotReadable({
     description: 'Current active site ID',
     value: activeSiteId,
+  });
+
+  useCopilotReadable({
+    description: 'Current dashboard view: chat, graph, timeline, or calendar',
+    value: dashboardView,
   });
 
   // ── Generative UI Actions — Charts & Visualizations ──
@@ -263,6 +268,20 @@ export default function CopilotProvider() {
       const m = mode.toLowerCase().includes('cost') ? 'cost' as const : 'quality' as const;
       useAppStore.getState().setOptimizationMode(m);
       return `Optimization mode set to ${m === 'cost' ? 'cost savings' : 'best quality'}.`;
+    },
+  });
+
+  useCopilotAction({
+    name: 'showView',
+    description: 'Switch the dashboard to a different view: chat, graph, timeline, or calendar. Use when user says "show me the graph", "open timeline", etc.',
+    parameters: [
+      { name: 'view', type: 'string', description: 'View to switch to: chat, graph, timeline, or calendar' },
+    ],
+    handler: ({ view }: { view: string }) => {
+      const validViews: DashboardView[] = ['chat', 'graph', 'timeline', 'calendar'];
+      const v = validViews.find((vv) => vv === view.toLowerCase()) ?? 'chat';
+      useAppStore.getState().setDashboardView(v);
+      return `Switched to ${v} view.`;
     },
   });
 

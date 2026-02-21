@@ -20,10 +20,13 @@ import type {
   SystemState,
   TaskReasoning,
   OptimizationMode,
+  ServiceProfile,
+  VendorSearchContext,
 } from '@/types';
 import { safeInvoke } from '@/lib/bedrock';
-import { findVendors, getMarketPrice } from '@/lib/vendors';
+import { findVendors, getMarketPrice, rankVendors, buildVendorQueries } from '@/lib/vendors';
 import { buildGraph, computeAnalytics, updateSession } from '@/lib/graph';
+import tracer from 'dd-trace';
 
 // ─────────────────────────────────────────────────────────────
 // DEMO DATA (used when Bedrock credentials are unavailable)
@@ -197,9 +200,21 @@ Return ONLY valid JSON:
   ]
 }`;
 
-const VENDOR_SYSTEM = `You are VendorDiscovery, an AI agent that evaluates vendors for maintenance tasks.
-You use public data (Google, Yelp, BBB) to assess reliability, pricing, and availability.
-Return reasoning as plain text explaining your selection and why alternatives were rejected.`;
+const VENDOR_SYSTEM = `You are VendorDiscovery.
+Given a task and candidate vendors, pick the best vendor and provide structured justification.
+
+Return ONLY valid JSON:
+{
+  "selectedVendorName": "...",
+  "topAlternatives": [{"vendorName":"...","whyNotSelected":"..."}],
+  "matchEvidence": {
+    "taskKeywordsMatched": ["..."],
+    "licenseInsuranceCheck": {"required": true, "licensed": true, "insured": true},
+    "pricingCheck": {"estimate": 0, "market": 0, "position": "below|at|above"},
+    "trustSignals": {"rating": 0, "reviewCount": 0, "bbb": "unknown|ok|warning"}
+  },
+  "summary": "2-3 sentences, grounded in the evidence above."
+}`;
 
 const SCHEDULER_SYSTEM = `You are Scheduler, an AI agent that proposes optimal maintenance schedules.
 Consider: urgency, vendor availability, weather, cost optimization, bundling opportunities.
@@ -294,7 +309,7 @@ interface TaskTemplate {
   description: string;
   assetId?: string;
   complianceId?: string;
-  specialty: string;
+  service: ServiceProfile;
   priority: Task['priority'];
   dueDate: string;
   requiresApproval: boolean;
@@ -303,13 +318,20 @@ interface TaskTemplate {
 function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): TaskTemplate[] {
   const templates: TaskTemplate[] = [];
 
-  // Asset-based tasks
+  // Asset-based tasks with rich ServiceProfile
   const assetTaskMap: Record<string, TaskTemplate> = {
     'a-hvac': {
       title: 'HVAC Annual Service',
       description: 'Full inspection, filter replacement, refrigerant check, and tune-up.',
       assetId: 'a-hvac',
-      specialty: 'hvac',
+      service: {
+        category: 'hvac',
+        subcategory: 'annual_service',
+        keywords: ['HVAC tune-up', 'AC service', 'furnace inspection', 'seasonal maintenance'],
+        onsite: true,
+        requiresLicense: ['HVAC Contractor'],
+        urgency: 'urgent',
+      },
       priority: 'urgent',
       dueDate: '2025-02-28',
       requiresApproval: true,
@@ -318,7 +340,14 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
       title: 'Water Heater Replacement',
       description: 'Replace 9-year-old unit with high-efficiency tank or tankless model.',
       assetId: 'a-waterheater',
-      specialty: 'water_heater',
+      service: {
+        category: 'plumbing',
+        subcategory: 'water_heater_replacement',
+        keywords: ['water heater replacement', 'tankless installation', 'hot water tank'],
+        onsite: true,
+        requiresLicense: ['Plumber'],
+        urgency: 'urgent',
+      },
       priority: 'high',
       dueDate: '2025-03-15',
       requiresApproval: true,
@@ -327,7 +356,14 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
       title: 'Smoke Detector Testing & Battery Replacement',
       description: 'Test all 3 units, replace batteries, document compliance.',
       assetId: 'a-smoke',
-      specialty: 'fire_inspection',
+      service: {
+        category: 'fire_safety',
+        subcategory: 'alarm_testing',
+        keywords: ['fire alarm testing', 'smoke detector inspection', 'battery replacement', 'fire safety compliance'],
+        onsite: true,
+        requiresLicense: ['Fire Safety Inspector'],
+        urgency: 'urgent',
+      },
       priority: 'urgent',
       dueDate: '2025-02-25',
       requiresApproval: true,
@@ -336,7 +372,14 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
       title: 'Roof Inspection',
       description: 'Full structural inspection, check for damage, moss, and drainage issues.',
       assetId: 'a-roof',
-      specialty: 'roofing',
+      service: {
+        category: 'roofing',
+        subcategory: 'inspection',
+        keywords: ['roof inspection', 'shingle assessment', 'leak detection', 'structural inspection'],
+        onsite: true,
+        requiresLicense: ['Roofing Contractor'],
+        urgency: 'urgent',
+      },
       priority: 'urgent',
       dueDate: '2025-03-01',
       requiresApproval: true,
@@ -345,7 +388,14 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
       title: 'Electrical Panel Inspection',
       description: 'Inspect 2008 panel for code compliance, load capacity, and safety.',
       assetId: 'a-panel',
-      specialty: 'electrical',
+      service: {
+        category: 'electrical',
+        subcategory: 'panel_inspection',
+        keywords: ['electrical panel inspection', 'breaker panel', 'code compliance', 'load capacity test'],
+        onsite: true,
+        requiresLicense: ['Electrician'],
+        urgency: 'urgent',
+      },
       priority: 'high',
       dueDate: '2025-03-20',
       requiresApproval: true,
@@ -354,7 +404,13 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
       title: 'SSL Certificate Renewal',
       description: 'Renew SSL certificate before expiry to prevent downtime and security warnings.',
       assetId: 'a-ssl',
-      specialty: 'ssl',
+      service: {
+        category: 'it_security',
+        subcategory: 'ssl_renewal',
+        keywords: ['SSL renewal', 'TLS certificate', 'certificate installation', 'HTTPS setup'],
+        onsite: false,
+        urgency: 'urgent',
+      },
       priority: 'urgent',
       dueDate: '2025-03-07',
       requiresApproval: false,
@@ -363,7 +419,13 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
       title: 'Backup System Verification',
       description: 'Run full restore test on AWS S3 backup, verify integrity and retention policy.',
       assetId: 'a-backup',
-      specialty: 'ssl',
+      service: {
+        category: 'it_ops',
+        subcategory: 'backup_restore_test',
+        keywords: ['AWS S3 restore test', 'backup verification', 'disaster recovery test', 'retention policy audit'],
+        onsite: false,
+        urgency: 'standard',
+      },
       priority: 'medium',
       dueDate: '2025-03-31',
       requiresApproval: false,
@@ -378,7 +440,12 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
         title: `${asset.name} Maintenance`,
         description: `Scheduled maintenance for ${asset.name}.`,
         assetId: asset.id,
-        specialty: asset.tags[0] || 'general',
+        service: {
+          category: 'general',
+          keywords: asset.tags.length > 0 ? asset.tags : ['general maintenance'],
+          onsite: asset.type === 'physical',
+          urgency: asset.status === 'critical' ? 'urgent' : 'standard',
+        },
         priority: asset.status === 'critical' ? 'urgent' : 'medium',
         dueDate: '2025-04-01',
         requiresApproval: true,
@@ -388,11 +455,21 @@ function buildTaskTemplates(assets: Asset[], compliance: ComplianceItem[]): Task
 
   // Compliance-based tasks
   compliance.forEach((c) => {
+    const isFireRelated = c.linkedAssetIds.some((id) => id.includes('smoke') || id.includes('fire'));
     templates.push({
       title: c.name,
       description: c.description,
       complianceId: c.id,
-      specialty: c.linkedAssetIds.length > 0 ? 'fire_inspection' : 'business_license',
+      service: {
+        category: isFireRelated ? 'fire_safety' : 'compliance',
+        subcategory: isFireRelated ? 'fire_compliance' : 'regulatory',
+        keywords: isFireRelated
+          ? ['fire safety inspection', 'fire compliance', 'fire marshal inspection']
+          : ['business license', 'regulatory compliance', 'compliance audit'],
+        onsite: isFireRelated,
+        requiresLicense: isFireRelated ? ['Fire Safety Inspector'] : undefined,
+        urgency: c.riskLevel === 'critical' ? 'urgent' : 'standard',
+      },
       priority: c.riskLevel === 'critical' ? 'urgent' : c.riskLevel === 'high' ? 'high' : 'medium',
       dueDate: c.dueDate,
       requiresApproval: true,
@@ -406,32 +483,47 @@ async function discoverVendorsForTask(
   template: TaskTemplate,
   taskId: string,
   emit: StepEmitter,
+  ctx: VendorSearchContext,
+  assets: Asset[],
   mode: OptimizationMode = 'quality'
 ): Promise<Task> {
+  // Build asset context hints for better query specificity
+  const asset = assets.find((a) => a.id === template.assetId);
+  const contextHints = asset
+    ? [asset.location, asset.installedYear ? `installed ${asset.installedYear}` : null, ...asset.tags].filter(Boolean) as string[]
+    : [];
+
+  const queries = buildVendorQueries(template.service, ctx, contextHints);
+
   makeStep(
     emit,
     'VendorDiscovery',
     `Searching vendors for: ${template.title}`,
-    `Querying Yelp, Google, BBB for "${template.specialty}" specialists`,
+    `Queries: ${queries.slice(0, 2).join(' | ')}`,
     'running'
   );
 
-  const candidates = findVendors(template.specialty, mode);
-  const marketPrice = getMarketPrice(template.specialty);
+  const searchReq = {
+    service: template.service,
+    location: ctx,
+    queries,
+    mode,
+  };
 
-  if (candidates.length === 0) {
-    makeStep(emit, 'VendorDiscovery', `No vendors found for ${template.specialty}`, undefined, 'error');
+  const candidates = findVendors(searchReq);
+  const marketPrice = getMarketPrice(template.service.subcategory ?? template.service.category);
+  const { selected, alternatives, scored } = rankVendors(candidates, searchReq, marketPrice);
+
+  if (!selected) {
+    makeStep(emit, 'VendorDiscovery', `No vendors passed filters for ${template.service.category}`, undefined, 'error');
   }
 
-  const selected = candidates[0];
-  const alternatives = candidates.slice(1, 3);
-
   // Generate reasoning via Bedrock (or fallback)
-  const vendorSummary = candidates
-    .slice(0, 3)
+  const topScored = scored.slice(0, 3);
+  const vendorSummary = topScored
     .map(
-      (v) =>
-        `${v.name}: rating=${v.rating}, reliability=${v.reliabilityScore}%, price=$${v.estimatedPrice}, licensed=${v.licensed}, insured=${v.insured}`
+      ({ vendor: v, score }) =>
+        `${v.name}: rating=${v.rating}, reliability=${v.reliabilityScore}%, price=$${v.estimatedPrice}, licensed=${v.licensed}, insured=${v.insured}, score=${score.total.toFixed(2)} (relevance=${score.relevance.toFixed(2)}, trust=${score.trust.toFixed(2)}, compliance=${score.compliance.toFixed(2)})`
     )
     .join('\n');
 
@@ -439,21 +531,32 @@ async function discoverVendorsForTask(
 
   const { text: reasoningText } = await safeInvoke(
     VENDOR_SYSTEM,
-    `Task: ${template.title}\nCandidates:\n${vendorSummary}\n\nExplain vendor selection in 2-3 sentences covering: why selected vendor wins, pricing fairness, risk avoided.`,
+    `Task: ${template.title}\nCategory: ${template.service.category}/${template.service.subcategory ?? 'general'}\nKeywords: ${template.service.keywords.join(', ')}\nOnsite: ${template.service.onsite}\nLicense required: ${template.service.requiresLicense?.join(', ') ?? 'none'}\nMarket price: $${marketPrice}\n\nRanked candidates:\n${vendorSummary}\n\nPick the best vendor and justify.`,
     reasoningFallback,
     512
   );
+
+  // Parse structured reasoning from Bedrock; fall back to raw text
+  let reasoningSummary = reasoningText;
+  try {
+    const parsed = JSON.parse(reasoningText);
+    reasoningSummary = parsed.summary ?? reasoningText;
+  } catch {
+    // Model returned plain text — use as-is
+  }
 
   makeStep(
     emit,
     'VendorDiscovery',
     `Selected: ${selected?.name ?? 'No vendor'}`,
-    `Score: ${selected?.reliabilityScore}% reliability, $${selected?.estimatedPrice} vs $${marketPrice} market`,
+    selected
+      ? `Score: ${topScored[0]?.score.total.toFixed(2)} | $${selected.estimatedPrice} vs $${marketPrice} market`
+      : undefined,
     'complete'
   );
 
   const reasoning: TaskReasoning = {
-    summary: reasoningText,
+    summary: reasoningSummary,
     dataUsed: [
       'Yelp reviews (simulated)',
       'Google Business profile (simulated)',
@@ -462,10 +565,10 @@ async function discoverVendorsForTask(
     ],
     vendorSelectionReason: mode === 'cost'
       ? `Selected for lowest cost ($${selected?.estimatedPrice}) with acceptable reliability (${selected?.reliabilityScore}%) among ${candidates.length} candidates.`
-      : `Selected for highest reliability score (${selected?.reliabilityScore}%) and verified licensing/insurance among ${candidates.length} candidates.`,
-    priceJustification: `Estimated cost $${selected?.estimatedPrice} vs market average $${marketPrice} — ${Math.round(((marketPrice - (selected?.estimatedPrice ?? 0)) / marketPrice) * 100)}% below market.`,
+      : `Selected for highest composite score (${topScored[0]?.score.total.toFixed(2)}) combining relevance, trust, compliance, and pricing among ${candidates.length} candidates.`,
+    priceJustification: `Estimated cost $${selected?.estimatedPrice ?? 0} vs market average $${marketPrice} — ${marketPrice > 0 ? Math.round(((marketPrice - (selected?.estimatedPrice ?? 0)) / marketPrice) * 100) : 0}% below market.`,
     riskAvoided: template.priority === 'urgent'
-      ? 'Avoiding equipment failure, safety liability, and emergency repair premium (typically 3×).'
+      ? 'Avoiding equipment failure, safety liability, and emergency repair premium (typically 3x).'
       : 'Proactive scheduling prevents reactive costs and compliance penalties.',
     confidenceScore: selected ? Math.round((selected.reliabilityScore + selected.rating * 10) / 2) : 60,
     alternativesRejected: alternatives.map((v) => ({
@@ -545,70 +648,104 @@ export async function runOrchestrator(
   onStep: (step: AgentStep) => void,
   optimizationMode: OptimizationMode = 'quality'
 ): Promise<SystemState> {
-  let stepCounter = 0;
+  return tracer.llmobs.trace(
+    { kind: 'workflow', name: 'orchestrator.pipeline', sessionId },
+    async () => {
+      let stepCounter = 0;
 
-  const emit: StepEmitter = (step) => {
-    const agentStep: AgentStep = {
-      id: `step-${++stepCounter}`,
-      timestamp: new Date().toISOString(),
-      ...step,
-    };
-    onStep(agentStep);
-  };
+      const emit: StepEmitter = (step) => {
+        const agentStep: AgentStep = {
+          id: `step-${++stepCounter}`,
+          timestamp: new Date().toISOString(),
+          ...step,
+        };
+        onStep(agentStep);
+      };
 
-  makeStep(emit, 'Orchestrator', 'Initializing agent pipeline', 'AssetExtractor → ComplianceMapper → VendorDiscovery → Scheduler', 'running');
+      makeStep(emit, 'Orchestrator', 'Initializing agent pipeline', 'AssetExtractor → ComplianceMapper → VendorDiscovery → Scheduler', 'running');
 
-  // Phase 1
-  const assets = await extractAssets(description, emit);
-  makeStep(emit, 'AssetExtractor', `Extracted ${assets.length} assets`, assets.map((a) => a.name).join(', '), 'complete');
+      // Phase 1
+      const assets = await tracer.llmobs.trace(
+        { kind: 'task', name: 'phase.asset_extraction' },
+        async () => {
+          const result = await extractAssets(description, emit);
+          makeStep(emit, 'AssetExtractor', `Extracted ${result.length} assets`, result.map((a) => a.name).join(', '), 'complete');
+          return result;
+        },
+      );
 
-  // Phase 2
-  const complianceItems = await mapCompliance(description, assets, emit);
-  makeStep(emit, 'ComplianceMapper', `Mapped ${complianceItems.length} compliance items`, undefined, 'complete');
+      // Phase 2
+      const complianceItems = await tracer.llmobs.trace(
+        { kind: 'task', name: 'phase.compliance_mapping' },
+        async () => {
+          const result = await mapCompliance(description, assets, emit);
+          makeStep(emit, 'ComplianceMapper', `Mapped ${result.length} compliance items`, undefined, 'complete');
+          return result;
+        },
+      );
 
-  // Phase 3
-  makeStep(emit, 'VendorDiscovery', 'Building task list from assets and compliance...', undefined, 'running');
-  const templates = buildTaskTemplates(assets, complianceItems);
-  makeStep(emit, 'VendorDiscovery', `${templates.length} tasks identified`, 'Starting vendor search...', 'complete');
+      // Phase 3
+      // Default vendor search context — in production, derive from SetupData / site address
+      const vendorCtx: VendorSearchContext = {
+        city: 'Austin',
+        state: 'TX',
+        radiusMiles: 30,
+        propertyType: 'commercial',
+      };
 
-  const tasks: Task[] = [];
-  for (let i = 0; i < templates.length; i++) {
-    const task = await discoverVendorsForTask(templates[i], `t-${i + 1}`, emit, optimizationMode);
-    tasks.push(task);
-  }
+      const tasks: Task[] = await tracer.llmobs.trace(
+        { kind: 'task', name: 'phase.vendor_discovery' },
+        async () => {
+          makeStep(emit, 'VendorDiscovery', 'Building task list from assets and compliance...', undefined, 'running');
+          const templates = buildTaskTemplates(assets, complianceItems);
+          makeStep(emit, 'VendorDiscovery', `${templates.length} tasks identified`, 'Starting vendor search...', 'complete');
 
-  // Phase 4
-  const scheduledTasks = await proposeDates(tasks, emit);
+          const discovered: Task[] = [];
+          for (let i = 0; i < templates.length; i++) {
+            const task = await discoverVendorsForTask(templates[i], `t-${i + 1}`, emit, vendorCtx, assets, optimizationMode);
+            discovered.push(task);
+          }
+          return discovered;
+        },
+      );
 
-  makeStep(emit, 'Orchestrator', 'Planning complete', `${assets.length} assets · ${complianceItems.length} compliance · ${scheduledTasks.length} tasks`, 'complete');
+      // Phase 4
+      const scheduledTasks = await tracer.llmobs.trace(
+        { kind: 'task', name: 'phase.scheduling' },
+        async () => proposeDates(tasks, emit),
+      );
 
-  // Build final state
-  const draft: SystemState = {
-    sessionId,
-    phase: 'review',
-    inputDescription: description,
-    optimizationMode,
-    assets,
-    complianceItems,
-    tasks: scheduledTasks,
-    agentSteps: [],
-    graph: { nodes: [], edges: [] },
-    analytics: {
-      complianceScore: 0,
-      upcomingRisks: [],
-      estimatedSavings: 0,
-      totalCost: 0,
-      maintenanceTimeline: [],
-      totalTasks: 0,
-      approvedTasks: 0,
-      criticalItems: 0,
-      historicalDecisions: [],
+      makeStep(emit, 'Orchestrator', 'Planning complete', `${assets.length} assets · ${complianceItems.length} compliance · ${scheduledTasks.length} tasks`, 'complete');
+
+      // Build final state
+      const draft: SystemState = {
+        sessionId,
+        phase: 'review',
+        inputDescription: description,
+        optimizationMode,
+        assets,
+        complianceItems,
+        tasks: scheduledTasks,
+        agentSteps: [],
+        graph: { nodes: [], edges: [] },
+        analytics: {
+          complianceScore: 0,
+          upcomingRisks: [],
+          estimatedSavings: 0,
+          totalCost: 0,
+          maintenanceTimeline: [],
+          totalTasks: 0,
+          approvedTasks: 0,
+          criticalItems: 0,
+          historicalDecisions: [],
+        },
+        lastUpdated: new Date().toISOString(),
+      };
+
+      draft.graph = buildGraph(draft);
+      draft.analytics = computeAnalytics(draft);
+
+      return updateSession(sessionId, draft);
     },
-    lastUpdated: new Date().toISOString(),
-  };
-
-  draft.graph = buildGraph(draft);
-  draft.analytics = computeAnalytics(draft);
-
-  return updateSession(sessionId, draft);
+  );
 }

@@ -7,7 +7,9 @@ import type {
   Task,
   PhaseType,
   Site,
+  SetupData,
   OptimizationMode,
+  DashboardView,
   OrderHistoryEntry,
   GraphNode,
   GraphEdge,
@@ -31,6 +33,11 @@ interface AppStore {
   leftCollapsed: boolean;
   rightPanelView: RightPanelView;
   optimizationMode: OptimizationMode;
+  dashboardView: DashboardView;
+
+  // Setup wizard
+  setupData: SetupData | null;
+  setupStep: number;
 
   // History
   orderHistory: OrderHistoryEntry[];
@@ -48,6 +55,7 @@ interface AppStore {
   removeSite: (siteId: string) => void;
   renameSite: (siteId: string, name: string) => void;
   setActiveSite: (siteId: string) => void;
+  updateSite: (siteId: string, patch: Partial<Site>) => void;
 
   // Actions — UI
   setSelectedTaskId: (id: string | null) => void;
@@ -55,6 +63,13 @@ interface AppStore {
   toggleLeftSidebar: () => void;
   setRightPanelView: (view: RightPanelView) => void;
   setOptimizationMode: (mode: OptimizationMode) => void;
+  setDashboardView: (view: DashboardView) => void;
+
+  // Actions — setup wizard
+  setSetupStep: (step: number) => void;
+  updateSetupData: (patch: Partial<SetupData>) => void;
+  resetSetup: () => void;
+  completeSetup: (siteId: string) => void;
 
   // Actions — graph mutations
   addGraphNode: (node: GraphNode) => void;
@@ -92,6 +107,33 @@ const DEFAULT_SITE: Site = {
   createdAt: new Date().toISOString(),
 };
 
+const EMPTY_SETUP: SetupData = {
+  siteName: '',
+  address: '',
+  propertyType: 'commercial',
+  description: '',
+  complianceNeeds: [],
+  uploadedFiles: [],
+  completed: false,
+};
+
+export function composeDescription(data: SetupData): string {
+  const parts: string[] = [];
+  parts.push(`${data.propertyType.replace('_', ' ')} property at ${data.address}.`);
+  if (data.squareFootage) parts.push(`${data.squareFootage} sq ft.`);
+  if (data.yearBuilt) parts.push(`Built in ${data.yearBuilt}.`);
+  if (data.numberOfUnits) parts.push(`${data.numberOfUnits} units.`);
+  if (data.description) parts.push(data.description);
+  if (data.complianceNeeds.length > 0) {
+    parts.push(`Compliance needs: ${data.complianceNeeds.join(', ')}.`);
+  }
+  if (data.jurisdiction) parts.push(`Jurisdiction: ${data.jurisdiction}.`);
+  for (const file of data.uploadedFiles) {
+    parts.push(`--- ${file.name} ---\n${file.extractedText}`);
+  }
+  return parts.join('\n');
+}
+
 export const useAppStore = create<AppStore>((set, get) => ({
   state: null,
   agentSteps: [],
@@ -105,6 +147,10 @@ export const useAppStore = create<AppStore>((set, get) => ({
   leftCollapsed: false,
   rightPanelView: 'none',
   optimizationMode: 'quality',
+  dashboardView: 'chat',
+
+  setupData: null,
+  setupStep: 0,
 
   orderHistory: loadFromStorage('upkept-history', []),
 
@@ -210,6 +256,43 @@ export const useAppStore = create<AppStore>((set, get) => ({
   setRightPanelView: (view) => set({ rightPanelView: view }),
 
   setOptimizationMode: (mode) => set({ optimizationMode: mode }),
+
+  setDashboardView: (view) => set({ dashboardView: view }),
+
+  // ── Setup wizard ──
+
+  setSetupStep: (step) => set({ setupStep: step }),
+
+  updateSetupData: (patch) =>
+    set((s) => ({
+      setupData: { ...(s.setupData ?? EMPTY_SETUP), ...patch },
+    })),
+
+  resetSetup: () => set({ setupData: null, setupStep: 0 }),
+
+  completeSetup: (siteId) => {
+    const { setupData, sites } = get();
+    if (!setupData) return;
+    const completed: SetupData = { ...setupData, completed: true, completedAt: new Date().toISOString() };
+    const updatedSites = sites.map((s) =>
+      s.id === siteId
+        ? { ...s, name: setupData.siteName || s.name, address: setupData.address || s.address, setupData: completed, setupCompleted: true }
+        : s
+    );
+    saveToStorage('upkept-sites', updatedSites);
+    set({ setupData: null, setupStep: 0, sites: updatedSites });
+  },
+
+  // ── Site update ──
+
+  updateSite: (siteId, patch) =>
+    set((s) => {
+      const sites = s.sites.map((si) =>
+        si.id === siteId ? { ...si, ...patch } : si
+      );
+      saveToStorage('upkept-sites', sites);
+      return { sites };
+    }),
 
   // ── Graph mutations ──
 

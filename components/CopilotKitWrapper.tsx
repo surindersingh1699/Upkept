@@ -8,6 +8,7 @@ export function CopilotKitWrapper({ children }: { children: React.ReactNode }) {
   return (
     <CopilotKit
       runtimeUrl="/api/copilotkit"
+      textToSpeechUrl="/api/tts"
       {...(cloudKey ? { publicApiKey: cloudKey } : {})}
     >
       {children}

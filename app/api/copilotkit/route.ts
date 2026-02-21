@@ -1,15 +1,20 @@
 import {
   CopilotRuntime,
-  BedrockAdapter,
+  OpenAIAdapter,
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
+import OpenAI from 'openai';
 import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const serviceAdapter = new BedrockAdapter({
-  model: 'anthropic.claude-3-5-sonnet-20241022-v2:0',
-  region: process.env.AWS_DEFAULT_REGION || process.env.AWS_REGION || 'us-west-2',
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
+
+const serviceAdapter = new OpenAIAdapter({
+  openai,
+  model: 'gpt-4o',
 });
 
 const copilotRuntime = new CopilotRuntime();
@@ -21,11 +26,12 @@ export async function POST(req: NextRequest) {
       serviceAdapter,
       endpoint: '/api/copilotkit',
     });
-    return handleRequest(req);
+    const response = await handleRequest(req);
+    return response;
   } catch (err) {
     console.error('[copilotkit] Error:', err);
     return NextResponse.json(
-      { error: 'CopilotKit failed — check AWS Bedrock credentials', detail: String(err) },
+      { error: 'CopilotKit failed — check OPENAI_API_KEY', detail: String(err) },
       { status: 500 },
     );
   }

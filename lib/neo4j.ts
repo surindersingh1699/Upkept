@@ -1,4 +1,5 @@
 import neo4j, { Driver, Session, type QueryResult } from 'neo4j-driver';
+import tracer from 'dd-trace';
 
 declare global {
   // eslint-disable-next-line no-var
@@ -25,40 +26,46 @@ export async function runQuery(
   cypher: string,
   params: Record<string, unknown> = {},
 ): Promise<QueryResult> {
-  const driver = getDriver();
-  if (!driver) throw new Error('Neo4j not configured');
-  const session: Session = driver.session();
-  try {
-    return await session.run(cypher, params);
-  } finally {
-    await session.close();
-  }
+  return tracer.trace('neo4j.query', { resource: cypher }, async () => {
+    const driver = getDriver();
+    if (!driver) throw new Error('Neo4j not configured');
+    const session: Session = driver.session();
+    try {
+      return await session.run(cypher, params);
+    } finally {
+      await session.close();
+    }
+  });
 }
 
 export async function runWrite(
   cypher: string,
   params: Record<string, unknown> = {},
 ): Promise<QueryResult> {
-  const driver = getDriver();
-  if (!driver) throw new Error('Neo4j not configured');
-  const session: Session = driver.session();
-  try {
-    return await session.executeWrite((tx) => tx.run(cypher, params));
-  } finally {
-    await session.close();
-  }
+  return tracer.trace('neo4j.write', { resource: cypher }, async () => {
+    const driver = getDriver();
+    if (!driver) throw new Error('Neo4j not configured');
+    const session: Session = driver.session();
+    try {
+      return await session.executeWrite((tx) => tx.run(cypher, params));
+    } finally {
+      await session.close();
+    }
+  });
 }
 
 export async function runRead(
   cypher: string,
   params: Record<string, unknown> = {},
 ): Promise<QueryResult> {
-  const driver = getDriver();
-  if (!driver) throw new Error('Neo4j not configured');
-  const session: Session = driver.session();
-  try {
-    return await session.executeRead((tx) => tx.run(cypher, params));
-  } finally {
-    await session.close();
-  }
+  return tracer.trace('neo4j.read', { resource: cypher }, async () => {
+    const driver = getDriver();
+    if (!driver) throw new Error('Neo4j not configured');
+    const session: Session = driver.session();
+    try {
+      return await session.executeRead((tx) => tx.run(cypher, params));
+    } finally {
+      await session.close();
+    }
+  });
 }
