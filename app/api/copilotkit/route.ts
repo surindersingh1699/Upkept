@@ -8,19 +8,22 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+let _openai: OpenAI | null = null;
 
-const serviceAdapter = new OpenAIAdapter({
-  openai,
-  model: 'gpt-4o',
-});
-
-const copilotRuntime = new CopilotRuntime();
+function getOpenAI() {
+  if (!_openai) {
+    _openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  }
+  return _openai;
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const serviceAdapter = new OpenAIAdapter({
+      openai: getOpenAI(),
+      model: 'gpt-4o',
+    });
+    const copilotRuntime = new CopilotRuntime();
     const { handleRequest } = copilotRuntimeNextJSAppRouterEndpoint({
       runtime: copilotRuntime,
       serviceAdapter,

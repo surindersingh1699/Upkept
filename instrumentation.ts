@@ -1,5 +1,5 @@
 export async function register() {
-  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.DD_ENV !== "development") {
+  if (process.env.NEXT_RUNTIME === "nodejs" && process.env.DD_API_KEY) {
     const { default: tracer } = await import("dd-trace");
 
     tracer.init({
